@@ -10,35 +10,34 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização CSS Clean Power BI + Banner de Título Superior
+# Estilização CSS Clean Power BI
 st.markdown("""
 <style>
     .stApp {
         background-color: #F4F6F9;
         color: #1E293B;
     }
-    .header-container {
-        background: linear-gradient(90deg, #1E3A2F 0%, #2D4A3E 100%);
-        padding: 16px 24px;
+    .header-card {
+        background-color: #FFFFFF;
+        padding: 18px 24px;
         border-radius: 8px;
         margin-bottom: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        border: 1px solid #E2E8F0;
+        border-left: 6px solid #2D4A3E;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
     }
     .header-title {
-        color: #FFFFFF;
+        color: #0F172A !important;
         font-size: 24px;
         font-weight: 800;
-        letter-spacing: 1px;
+        letter-spacing: 0.5px;
         margin: 0;
         text-transform: uppercase;
     }
     .header-subtitle {
-        color: #A7F3D0;
+        color: #64748B !important;
         font-size: 13px;
-        margin: 0;
+        margin: 4px 0 0 0;
         font-weight: 500;
     }
     .kpi-card {
@@ -61,9 +60,6 @@ st.markdown("""
         color: #0F172A;
         font-size: 23px;
         font-weight: 800;
-    }
-    h3, h4, p, label {
-        color: #0F172A !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -125,11 +121,11 @@ else:
     df_acidentes = pd.read_excel(buffer, sheet_name="Acidentes")
     df_hht = pd.read_excel(buffer, sheet_name="HHT")
 
-# Padronização de datas
+# Tratamento de datas
 df_acidentes["Data"] = pd.to_datetime(df_acidentes["Data"], errors="coerce")
 df_acidentes["Mes_Ano"] = df_acidentes["Data"].dt.strftime("%Y-%m")
 
-# Identificação da coluna de quantidade
+# Suporte à contagem agrupada ou individual
 col_qtd = next((c for c in ["Quantidade de eventos", "Quantidade", "Qtd", "Eventos"] if c in df_acidentes.columns), None)
 if col_qtd:
     df_acidentes[col_qtd] = pd.to_numeric(df_acidentes[col_qtd], errors="coerce").fillna(1)
@@ -142,7 +138,7 @@ if "Dias_Perdidos" not in df_acidentes.columns:
 else:
     df_acidentes["Dias_Perdidos"] = pd.to_numeric(df_acidentes["Dias_Perdidos"], errors="coerce").fillna(0)
 
-# Classificação das Ocorrências (NBR 14280)
+# Classificação NBR 14280
 cpt_mask = df_acidentes["Tipo"].astype(str).str.contains("Com Afastamento|CAF|CPT", case=False, na=False)
 spt_mask = df_acidentes["Tipo"].astype(str).str.contains("Sem Afastamento|SAF|SPT", case=False, na=False)
 outros_mask = ~cpt_mask & ~spt_mask
@@ -151,7 +147,7 @@ df_acidentes["Qtd_CAF"] = df_acidentes[col_qtd].where(cpt_mask, 0)
 df_acidentes["Qtd_SAF"] = df_acidentes[col_qtd].where(spt_mask, 0)
 df_acidentes["Qtd_Outros"] = df_acidentes[col_qtd].where(outros_mask, 0)
 
-# 4. Totais Globais
+# 4. Métricas Gerais
 total_hht = df_hht["HHT"].sum() if "HHT" in df_hht.columns else 0
 total_eventos = int(df_acidentes[col_qtd].sum())
 total_caf = int(df_acidentes["Qtd_CAF"].sum())
@@ -168,17 +164,15 @@ def formata_numero(n):
         return f"{n/1_000:.1f} Mil"
     return str(int(n))
 
-# 5. CABEÇALHO SUPERIOR (Power BI Banner)
+# 5. Banner de Título Superior (Card Branco Clean)
 st.markdown("""
-<div class="header-container">
-    <div>
-        <h1 class="header-title">📊 DASHBOARD DE ACIDENTES / QUASE-ACIDENTES</h1>
-        <p class="header-subtitle">Indicadores de Desempenho em Saúde e Segurança do Trabalho • NBR 14280</p>
-    </div>
+<div class="header-card">
+    <div class="header-title">📊 DASHBOARD DE ACIDENTES / QUASE-ACIDENTES</div>
+    <div class="header-subtitle">Indicadores de Desempenho em Saúde e Segurança do Trabalho • NBR 14280</div>
 </div>
 """, unsafe_allow_html=True)
 
-# 6. CARDS SUPERIORES DE KPIS
+# 6. Cards de Topo
 c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
 with c1:
     st.markdown(f'<div class="kpi-card"><div class="kpi-title">HHT Total</div><div class="kpi-value">{formata_numero(total_hht)}</div></div>', unsafe_allow_html=True)
@@ -197,7 +191,7 @@ with c7:
 
 st.write("")
 
-# 7. Agrupamento Mensal para Gráficos
+# 7. Resumo Mensal
 df_mensal_acidentes = df_acidentes.groupby("Mes_Ano").agg(
     CAF=("Qtd_CAF", "sum"),
     SAF=("Qtd_SAF", "sum"),
@@ -212,7 +206,7 @@ df_mensal = df_mensal.sort_values("Mes_Ano")
 df_mensal["TF"] = (df_mensal["CAF"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
 df_mensal["TG"] = (df_mensal["DP"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
 
-# 8. Gráficos de Barras com Metas (TF e TG)
+# 8. Gráficos Centrais
 g_col1, g_col2 = st.columns(2)
 
 with g_col1:
@@ -271,7 +265,7 @@ with g_col2:
 
 st.write("")
 
-# 9. Resumo Mensal + Setores + Tipos
+# 9. Tabela Mensal + Setores + Tipos
 inf1, inf2, inf3 = st.columns([1.5, 1.3, 1.2])
 
 with inf1:
@@ -323,7 +317,7 @@ with inf3:
 
 st.write("")
 
-# 10. Partes do Corpo Mais Atingidas + Agentes Causadores
+# 10. Partes do Corpo e Agentes Causadores
 detalhe_col1, detalhe_col2 = st.columns(2)
 
 with detalhe_col1:
