@@ -1,33 +1,68 @@
 import io
 import streamlit as st
 import pandas as pd
+import plotly.graph_objects as px_go
 import plotly.express as px
 
 st.set_page_config(
-    page_title="Dashboard Inteligente de SST",
-    page_icon="🦺",
+    page_title="KPIs de SST - Gestão Executiva",
+    page_icon="📊",
     layout="wide"
 )
 
-st.title("🦺 Painel Dinâmico de Indicadores de SST")
-st.caption("Auto-ajustável para qualquer formato de planilha com cálculos da NBR 14280")
+# Estilização CSS para transformar o Streamlit no layout limpo (Power BI Style)
+st.markdown("""
+<style>
+    /* Fundo da aplicação */
+    .stApp {
+        background-color: #F4F6F9;
+        color: #262730;
+    }
+    /* Estilo dos Cards de KPIs */
+    .kpi-card {
+        background-color: #FFFFFF;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -1px rgba(0,0,0,0.04);
+        text-align: center;
+        border: 1px solid #E2E8F0;
+    }
+    .kpi-title {
+        color: #64748B;
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .kpi-value {
+        color: #0F172A;
+        font-size: 28px;
+        font-weight: 700;
+    }
+    /* Container dos gráficos */
+    div[data-testid="stVerticalBlock"] > div:has(div.kpi-card) {
+        gap: 0.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 1. Planilha modelo base
+# 1. Gerador de Planilha Modelo
 @st.cache_data
 def gerar_planilha_modelo():
     df_exemplo_acidentes = pd.DataFrame({
-        "Data": ["2024-01-15", "2024-02-10", "2024-03-05", "2024-03-22", "2024-04-12", "2024-05-18"],
-        "Setor": ["Produção", "Manutenção", "Logística", "Produção", "Operações", "Usinagem"],
-        "Tipo": ["Com Afastamento", "Sem Afastamento", "Com Afastamento", "Quase-Acidente", "Com Afastamento", "Sem Afastamento"],
-        "Dias_Perdidos": [12, 0, 5, 0, 8, 0],
-        "Parte_Corpo": ["Mãos/Dedos", "Olhos", "Pés/Tornozelo", "Nenhum", "Braço", "Mãos/Dedos"],
-        "Agente": ["Máquina Puncionadeira", "Partícula Volante", "Paleteira Manual", "Piso Escorregadio", "Tubulação", "Rebarba Metálica"],
-        "Turno": ["1º Turno", "2º Turno", "1º Turno", "3º Turno", "1º Turno", "2º Turno"]
+        "Data": ["2025-01-15", "2025-02-10", "2025-02-20", "2025-03-05", "2025-04-12", "2025-05-18", "2025-06-02"],
+        "Setor": ["Laminação", "Aciaria", "Qualidade", "Logística", "Laminação", "Aciaria", "Manutenção"],
+        "Quantidade de eventos": [1, 1, 1, 1, 1, 1, 1],
+        "Tipo": ["Acidente CAF", "Acidente SAF", "Acidente CAF", "Incidente", "Acidente CAF", "Desvio", "Acidente CAF"],
+        "Dias_Perdidos": [120, 0, 150, 0, 120, 0, 200],
+        "Parte_Corpo": ["Mãos/Dedos", "Olhos", "Pés/Tornozelo", "Nenhum", "Braço", "Nenhum", "Pernas"],
+        "Agente": ["Prensa", "Partícula Volante", "Paleteira", "Piso Irregular", "Tubulação", "Sem EPI", "Guindaste"]
     })
 
     df_exemplo_hht = pd.DataFrame({
-        "Mes_Ano": ["2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06"],
-        "HHT": [52000, 48000, 51000, 50000, 53000, 49500]
+        "Mes_Ano": ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06"],
+        "HHT": [400000, 450000, 450000, 550000, 500000, 600000]
     })
 
     buffer = io.BytesIO()
@@ -37,121 +72,186 @@ def gerar_planilha_modelo():
     buffer.seek(0)
     return buffer
 
-# 2. Barra Lateral: Download e Upload
-st.sidebar.header("📥 1. Baixar Modelo Base")
-st.sidebar.download_button(
-    label="⬇️ Baixar Planilha Modelo (.xlsx)",
-    data=gerar_planilha_modelo(),
-    file_name="modelo_indicadores_sst.xlsx",
-    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-)
+# 2. Barra Lateral: Metas, Download e Upload
+with st.sidebar:
+    st.header("⚙️ Parâmetros & Metas")
+    meta_tf = st.number_input("Meta TF (Taxa de Freq.)", min_value=0.0, value=2.0, step=0.1)
+    meta_tg = st.number_input("Meta TG (Taxa de Grav.)", min_value=0.0, value=150.0, step=10.0)
+    
+    st.divider()
+    st.subheader("📥 Arquivo Modelo")
+    st.download_button(
+        label="⬇️ Baixar Planilha Padrão",
+        data=gerar_planilha_modelo(),
+        file_name="modelo_indicadores_sst.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    
+    st.divider()
+    st.subheader("📁 Upload de Dados")
+    upload_arquivo = st.file_uploader("Suba sua planilha (.xlsx)", type=["xlsx"])
 
-st.sidebar.divider()
-st.sidebar.header("📁 2. Enviar Dados")
-upload_arquivo = st.sidebar.file_uploader("Suba sua planilha (.xlsx)", type=["xlsx"])
-
+# 3. Leitura dos Dados
 if upload_arquivo:
     try:
         df_acidentes = pd.read_excel(upload_arquivo, sheet_name="Acidentes")
         df_hht = pd.read_excel(upload_arquivo, sheet_name="HHT")
-        st.sidebar.success("✅ Planilha carregada e adaptada!")
     except Exception:
-        st.sidebar.error("❌ A planilha precisa ter as abas 'Acidentes' e 'HHT'.")
+        st.error("Erro na leitura das abas 'Acidentes' e 'HHT'. Verifique o arquivo.")
         st.stop()
 else:
-    st.sidebar.info("💡 Exibindo dados de exemplo. Adicione quantas colunas quiser na sua planilha!")
-    modelo_buffer = gerar_planilha_modelo()
-    df_acidentes = pd.read_excel(modelo_buffer, sheet_name="Acidentes")
-    df_hht = pd.read_excel(modelo_buffer, sheet_name="HHT")
+    buffer = gerar_planilha_modelo()
+    df_acidentes = pd.read_excel(buffer, sheet_name="Acidentes")
+    df_hht = pd.read_excel(buffer, sheet_name="HHT")
 
-# Padronização de datas se houver coluna Data
-if "Data" in df_acidentes.columns:
-    df_acidentes["Data"] = pd.to_datetime(df_acidentes["Data"], errors="coerce")
+# Tratamento e suporte a eventos agrupados ou individuais
+df_acidentes["Data"] = pd.to_datetime(df_acidentes["Data"], errors="coerce")
+df_acidentes["Mes_Ano"] = df_acidentes["Data"].dt.strftime("%Y-%m")
 
-# 3. FILTROS DINÂMICOS NA BARRA LATERAL
-st.sidebar.divider()
-st.sidebar.header("🔍 Filtros Dinâmicos")
-
-df_filtrado = df_acidentes.copy()
-
-# Identifica automaticamente colunas categóricas (texto) para criar filtros
-colunas_categoricas = [c for c in df_acidentes.columns if df_acidentes[c].dtype == 'object' and c not in ["Data"]]
-
-filtros_selecionados = {}
-for col in colunas_categoricas:
-    valores_unicos = ["Todos"] + sorted([str(v) for v in df_acidentes[col].dropna().unique().tolist()])
-    escolha = st.sidebar.selectbox(f"Filtrar por {col}:", valores_unicos, key=f"filtro_{col}")
-    if escolha != "Todos":
-        df_filtrado = df_filtrado[df_filtrado[col].astype(str) == escolha]
-
-# 4. CARTÕES DE MÉTRICAS (KPIs)
-total_hht = df_hht["HHT"].sum() if "HHT" in df_hht.columns else 0
-total_ocorrencias = len(df_filtrado)
-
-# Verificação segura de colunas para cálculo
-if "Tipo" in df_filtrado.columns:
-    total_com_afastamento = len(df_filtrado[df_filtrado["Tipo"].str.contains("Com Afastamento|CPT", case=False, na=False)])
-    total_sem_afastamento = len(df_filtrado[df_filtrado["Tipo"].str.contains("Sem Afastamento|SPT", case=False, na=False)])
+col_qtd = next((c for c in ["Quantidade de eventos", "Quantidade", "Qtd", "Eventos"] if c in df_acidentes.columns), None)
+if col_qtd:
+    df_acidentes[col_qtd] = pd.to_numeric(df_acidentes[col_qtd], errors="coerce").fillna(1)
 else:
-    total_com_afastamento = 0
-    total_sem_afastamento = 0
+    col_qtd = "_Qtd"
+    df_acidentes[col_qtd] = 1
 
-total_dias_perdidos = df_filtrado["Dias_Perdidos"].sum() if "Dias_Perdidos" in df_filtrado.columns else 0
+# 4. Cálculos Totais
+total_hht = df_hht["HHT"].sum() if "HHT" in df_hht.columns else 0
+cpt_mask = df_acidentes["Tipo"].astype(str).str.contains("Com Afastamento|CAF|CPT", case=False, na=False)
+total_caf = int(df_acidentes[cpt_mask][col_qtd].sum())
+total_dp = int(df_acidentes["Dias_Perdidos"].sum()) if "Dias_Perdidos" in df_acidentes.columns else 0
 
-taxa_frequencia = (total_com_afastamento * 1_000_000) / total_hht if total_hht > 0 else 0
-taxa_gravidade = (total_dias_perdidos * 1_000_000) / total_hht if total_hht > 0 else 0
+tf_geral = (total_caf * 1_000_000) / total_hht if total_hht > 0 else 0
+tg_geral = (total_dp * 1_000_000) / total_hht if total_hht > 0 else 0
 
-kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-kpi1.metric("Taxa Frequência (TF)", f"{taxa_frequencia:.2f}")
-kpi2.metric("Taxa Gravidade (TG)", f"{taxa_gravidade:.2f}")
-kpi3.metric("Total Ocorrências", total_ocorrencias)
-kpi4.metric("Com Afastamento", total_com_afastamento)
-kpi5.metric("Dias Perdidos", int(total_dias_perdidos))
+# Formatação visual abreviada para os KPIs de topo
+def formata_numero(n):
+    if n >= 1_000_000:
+        return f"{n/1_000_000:.1f} Mi"
+    elif n >= 1_000:
+        return f"{n/1_000:.1f} Mil"
+    return str(int(n))
 
-st.divider()
+# 5. Linha de KPIs de Topo (Power BI Cards)
+c1, c2, c3, c4, c5 = st.columns(5)
+with c1:
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">Horas Trabalhadas</div><div class="kpi-value">{formata_numero(total_hht)}</div></div>', unsafe_allow_html=True)
+with c2:
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">Acidentes CAF</div><div class="kpi-value">{total_caf}</div></div>', unsafe_allow_html=True)
+with c3:
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">Dias Perdidos</div><div class="kpi-value">{formata_numero(total_dp)}</div></div>', unsafe_allow_html=True)
+with c4:
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">Taxa de Frequência (TF)</div><div class="kpi-value">{tf_geral:.1f}</div></div>', unsafe_allow_html=True)
+with c5:
+    st.markdown(f'<div class="kpi-card"><div class="kpi-title">Taxa de Gravidade (TG)</div><div class="kpi-value">{tg_geral:.0f}</div></div>', unsafe_allow_html=True)
 
-# 5. EVOLUÇÃO TEMPORAL AUTOMÁTICA (Se houver Data)
-if "Data" in df_filtrado.columns and df_filtrado["Data"].notna().any():
-    df_tempo = df_filtrado.dropna(subset=["Data"]).copy()
-    df_tempo["Ano_Mes"] = df_tempo["Data"].dt.to_period("M").astype(str)
-    contagem_tempo = df_tempo.groupby("Ano_Mes").size().reset_index(name="Quantidade")
-    
-    fig_linha = px.line(
-        contagem_tempo, x="Ano_Mes", y="Quantidade",
-        markers=True,
-        title="📈 Evolução Mensal das Ocorrências",
-        labels={"Ano_Mes": "Mês/Ano", "Quantidade": "Total Ocorrências"}
+st.write("")
+
+# 6. Agrupamento Mensal para Gráficos e Tabela
+df_mensal_acidentes = df_acidentes[cpt_mask].groupby("Mes_Ano").agg(
+    CAF=(col_qtd, "sum"),
+    DP=("Dias_Perdidos", "sum")
+).reset_index()
+
+df_mensal = pd.merge(df_hht, df_mensal_acidentes, on="Mes_Ano", how="left").fillna(0)
+df_mensal = df_mensal.sort_values("Mes_Ano")
+
+df_mensal["TF"] = (df_mensal["CAF"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
+df_mensal["TG"] = (df_mensal["DP"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
+
+# 7. Gráficos Centrais (Barras Verdes + Linha de Meta Laranja)
+g_col1, g_col2 = st.columns(2)
+
+with g_col1:
+    fig_tf = px_go.Figure()
+    fig_tf.add_trace(px_go.Bar(
+        x=df_mensal["Mes_Ano"], y=df_mensal["TF"],
+        name="Taxa de Frequência (TF)",
+        marker_color="#2D4A3E",
+        text=df_mensal["TF"].round(1),
+        textposition="outside"
+    ))
+    fig_tf.add_trace(px_go.Scatter(
+        x=df_mensal["Mes_Ano"], y=[meta_tf]*len(df_mensal),
+        name="Meta (TF)",
+        mode="lines",
+        line=dict(color="#D97706", width=3)
+    ))
+    fig_tf.update_layout(
+        title="<b>Taxa de Frequência (TF) e Meta (TF) por Mês/Ano</b>",
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=20, r=20, t=45, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
     )
-    st.plotly_chart(fig_linha, use_container_width=True)
+    st.plotly_chart(fig_tf, use_container_width=True)
 
-# 6. GRÁFICOS DINÂMICOS (Gera automaticamente para QUALQUER coluna de texto)
-st.subheader("📊 Análises Estratégicas")
+with g_col2:
+    fig_tg = px_go.Figure()
+    fig_tg.add_trace(px_go.Bar(
+        x=df_mensal["Mes_Ano"], y=df_mensal["TG"],
+        name="Taxa de Gravidade (TG)",
+        marker_color="#2D4A3E",
+        text=df_mensal["TG"].round(0).astype(int),
+        textposition="outside"
+    ))
+    fig_tg.add_trace(px_go.Scatter(
+        x=df_mensal["Mes_Ano"], y=[meta_tg]*len(df_mensal),
+        name="Meta (TG)",
+        mode="lines",
+        line=dict(color="#D97706", width=3)
+    ))
+    fig_tg.update_layout(
+        title="<b>Taxa de Gravidade (TG) e Meta (TG) por Mês/Ano</b>",
+        plot_bgcolor="#FFFFFF",
+        paper_bgcolor="#FFFFFF",
+        margin=dict(l=20, r=20, t=45, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5)
+    )
+    st.plotly_chart(fig_tg, use_container_width=True)
 
-# Pega até 4 colunas categóricas para gerar gráficos em pares
-colunas_graficos = [c for c in colunas_categoricas if c not in ["Tipo"]]
+# 8. Linha Inferior: Tabela Resumo + Barras por Setor + Rosca de Tipos
+inf1, inf2, inf3 = st.columns([1.2, 1.4, 1.2])
 
-if colunas_graficos:
-    for i in range(0, len(colunas_graficos), 2):
-        g1, g2 = st.columns(2)
-        
-        col_atual_1 = colunas_graficos[i]
-        with g1:
-            dados_1 = df_filtrado[col_atual_1].value_counts().reset_index()
-            dados_1.columns = [col_atual_1, "Qtd"]
-            fig1 = px.bar(dados_1, x=col_atual_1, y="Qtd", title=f"Distribuição por {col_atual_1}", color="Qtd", color_continuous_scale="Blues")
-            st.plotly_chart(fig1, use_container_width=True)
-            
-        if i + 1 < len(colunas_graficos):
-            col_atual_2 = colunas_graficos[i + 1]
-            with g2:
-                dados_2 = df_filtrado[col_atual_2].value_counts().reset_index()
-                dados_2.columns = [col_atual_2, "Qtd"]
-                fig2 = px.pie(dados_2, names=col_atual_2, values="Qtd", title=f"Proporção por {col_atual_2}", hole=0.35)
-                st.plotly_chart(fig2, use_container_width=True)
+with inf1:
+    st.markdown("**Resumo Mensal de Indicadores**")
+    df_tabela_view = df_mensal[["Mes_Ano", "HHT", "CAF", "TF", "DP", "TG"]].copy()
+    df_tabela_view["TF"] = df_tabela_view["TF"].round(1)
+    df_tabela_view["TG"] = df_tabela_view["TG"].round(0).astype(int)
+    st.dataframe(df_tabela_view, hide_index=True, use_container_width=True)
 
-# 7. Tabela de Registros
-st.subheader("📋 Base de Dados Completa")
-df_tabela = df_filtrado.copy()
-if "Data" in df_tabela.columns:
-    df_tabela["Data"] = df_tabela["Data"].dt.strftime("%d/%m/%Y")
-st.dataframe(df_tabela, use_container_width=True)
+with inf2:
+    col_depto = "Setor" if "Setor" in df_acidentes.columns else "Departamento"
+    if col_depto in df_acidentes.columns:
+        depto_data = df_acidentes.groupby(col_depto)[col_qtd].sum().reset_index()
+        depto_data = depto_data.sort_values(col_qtd, ascending=True)
+        fig_depto = px.bar(
+            depto_data, y=col_depto, x=col_qtd,
+            orientation='h',
+            title=f"<b>Ocorrências por {col_depto}</b>",
+            text=col_qtd,
+            color_discrete_sequence=["#2D4A3E"]
+        )
+        fig_depto.update_layout(
+            plot_bgcolor="#FFFFFF",
+            paper_bgcolor="#FFFFFF",
+            margin=dict(l=20, r=20, t=45, b=20),
+            xaxis_title=None, yaxis_title=None
+        )
+        st.plotly_chart(fig_depto, use_container_width=True)
+
+with inf3:
+    if "Tipo" in df_acidentes.columns:
+        tipo_data = df_acidentes.groupby("Tipo")[col_qtd].sum().reset_index()
+        fig_tipo = px.pie(
+            tipo_data, names="Tipo", values=col_qtd,
+            hole=0.55,
+            title="<b>Ocorrências por Tipo</b>",
+            color_discrete_sequence=["#2D4A3E", "#D97706", "#D9C3B0", "#64748B"]
+        )
+        fig_tipo.update_layout(
+            paper_bgcolor="#FFFFFF",
+            margin=dict(l=20, r=20, t=45, b=20),
+            legend=dict(orientation="v", yanchor="middle", y=0.5)
+        )
+        st.plotly_chart(fig_tipo, use_container_width=True)
