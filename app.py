@@ -10,7 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilização CSS Clean Power BI
+# Estilização CSS Clean Power BI com Responsividade Mobile
 st.markdown("""
 <style>
     .stApp {
@@ -19,16 +19,16 @@ st.markdown("""
     }
     .header-card {
         background-color: #FFFFFF;
-        padding: 18px 24px;
+        padding: 16px 20px;
         border-radius: 8px;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
         border: 1px solid #E2E8F0;
         border-left: 6px solid #2D4A3E;
         box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
     }
     .header-title {
         color: #0F172A !important;
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 800;
         letter-spacing: 0.5px;
         margin: 0;
@@ -36,17 +36,18 @@ st.markdown("""
     }
     .header-subtitle {
         color: #64748B !important;
-        font-size: 13px;
+        font-size: 12px;
         margin: 4px 0 0 0;
         font-weight: 500;
     }
     .kpi-card {
         background-color: #FFFFFF;
         border-radius: 8px;
-        padding: 14px 6px;
+        padding: 12px 6px;
         box-shadow: 0 4px 6px -1px rgba(0,0,0,0.07);
         text-align: center;
         border: 1px solid #E2E8F0;
+        margin-bottom: 8px;
     }
     .kpi-title {
         color: #64748B;
@@ -58,8 +59,23 @@ st.markdown("""
     }
     .kpi-value {
         color: #0F172A;
-        font-size: 23px;
+        font-size: 22px;
         font-weight: 800;
+    }
+    /* Ajustes específicos para telas de celular */
+    @media (max-width: 768px) {
+        .header-title {
+            font-size: 16px;
+        }
+        .header-subtitle {
+            font-size: 11px;
+        }
+        .kpi-value {
+            font-size: 18px;
+        }
+        .kpi-title {
+            font-size: 10px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -121,7 +137,7 @@ else:
     df_acidentes = pd.read_excel(buffer, sheet_name="Acidentes")
     df_hht = pd.read_excel(buffer, sheet_name="HHT")
 
-# Tratamento de datas
+# Padronização de datas
 df_acidentes["Data"] = pd.to_datetime(df_acidentes["Data"], errors="coerce")
 df_acidentes["Mes_Ano"] = df_acidentes["Data"].dt.strftime("%Y-%m")
 
@@ -147,7 +163,7 @@ df_acidentes["Qtd_CAF"] = df_acidentes[col_qtd].where(cpt_mask, 0)
 df_acidentes["Qtd_SAF"] = df_acidentes[col_qtd].where(spt_mask, 0)
 df_acidentes["Qtd_Outros"] = df_acidentes[col_qtd].where(outros_mask, 0)
 
-# 4. Métricas Gerais
+# 4. Totais Globais
 total_hht = df_hht["HHT"].sum() if "HHT" in df_hht.columns else 0
 total_eventos = int(df_acidentes[col_qtd].sum())
 total_caf = int(df_acidentes["Qtd_CAF"].sum())
@@ -164,7 +180,7 @@ def formata_numero(n):
         return f"{n/1_000:.1f} Mil"
     return str(int(n))
 
-# 5. Banner de Título Superior (Card Branco Clean)
+# 5. Banner de Título Superior
 st.markdown("""
 <div class="header-card">
     <div class="header-title">📊 DASHBOARD DE ACIDENTES / QUASE-ACIDENTES</div>
@@ -206,7 +222,10 @@ df_mensal = df_mensal.sort_values("Mes_Ano")
 df_mensal["TF"] = (df_mensal["CAF"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
 df_mensal["TG"] = (df_mensal["DP"] * 1_000_000) / df_mensal["HHT"].replace(0, 1)
 
-# 8. Gráficos Centrais
+# Configuração para esconder a barra flutuante de ferramentas nos gráficos
+config_limpo = {"displayModeBar": False}
+
+# 8. Gráficos Centrais (Sem a barra de ícones para não sobrepor no celular)
 g_col1, g_col2 = st.columns(2)
 
 with g_col1:
@@ -217,7 +236,7 @@ with g_col1:
         marker_color="#2D4A3E",
         text=df_mensal["TF"].round(1),
         textposition="outside",
-        textfont=dict(color="#0F172A", size=12)
+        textfont=dict(color="#0F172A", size=11)
     ))
     fig_tf.add_trace(px_go.Scatter(
         x=df_mensal["Mes_Ano"], y=[meta_tf]*len(df_mensal),
@@ -227,14 +246,14 @@ with g_col1:
     ))
     fig_tf.update_layout(
         title="<b>Taxa de Frequência (TF) e Meta por Mês/Ano</b>",
-        title_font=dict(color="#0F172A", size=15),
+        title_font=dict(color="#0F172A", size=14),
         plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-        margin=dict(l=20, r=20, t=45, b=20),
-        xaxis=dict(tickfont=dict(color="#0F172A"), showgrid=False),
-        yaxis=dict(tickfont=dict(color="#0F172A"), gridcolor="#E2E8F0"),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0F172A"))
+        margin=dict(l=15, r=15, t=40, b=20),
+        xaxis=dict(tickfont=dict(color="#0F172A", size=10), showgrid=False),
+        yaxis=dict(tickfont=dict(color="#0F172A", size=10), gridcolor="#E2E8F0"),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.28, xanchor="center", x=0.5, font=dict(color="#0F172A", size=10))
     )
-    st.plotly_chart(fig_tf, use_container_width=True)
+    st.plotly_chart(fig_tf, use_container_width=True, config=config_limpo)
 
 with g_col2:
     fig_tg = px_go.Figure()
@@ -244,7 +263,7 @@ with g_col2:
         marker_color="#2D4A3E",
         text=df_mensal["TG"].round(0).astype(int),
         textposition="outside",
-        textfont=dict(color="#0F172A", size=12)
+        textfont=dict(color="#0F172A", size=11)
     ))
     fig_tg.add_trace(px_go.Scatter(
         x=df_mensal["Mes_Ano"], y=[meta_tg]*len(df_mensal),
@@ -254,14 +273,14 @@ with g_col2:
     ))
     fig_tg.update_layout(
         title="<b>Taxa de Gravidade (TG) e Meta por Mês/Ano</b>",
-        title_font=dict(color="#0F172A", size=15),
+        title_font=dict(color="#0F172A", size=14),
         plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-        margin=dict(l=20, r=20, t=45, b=20),
-        xaxis=dict(tickfont=dict(color="#0F172A"), showgrid=False),
-        yaxis=dict(tickfont=dict(color="#0F172A"), gridcolor="#E2E8F0"),
-        legend=dict(orientation="h", yanchor="bottom", y=-0.25, xanchor="center", x=0.5, font=dict(color="#0F172A"))
+        margin=dict(l=15, r=15, t=40, b=20),
+        xaxis=dict(tickfont=dict(color="#0F172A", size=10), showgrid=False),
+        yaxis=dict(tickfont=dict(color="#0F172A", size=10), gridcolor="#E2E8F0"),
+        legend=dict(orientation="h", yanchor="bottom", y=-0.28, xanchor="center", x=0.5, font=dict(color="#0F172A", size=10))
     )
-    st.plotly_chart(fig_tg, use_container_width=True)
+    st.plotly_chart(fig_tg, use_container_width=True, config=config_limpo)
 
 st.write("")
 
@@ -289,14 +308,14 @@ with inf2:
             color_discrete_sequence=["#2D4A3E"]
         )
         fig_depto.update_layout(
-            title_font=dict(color="#0F172A"),
+            title_font=dict(color="#0F172A", size=14),
             plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-            margin=dict(l=20, r=20, t=45, b=20),
-            xaxis=dict(tickfont=dict(color="#0F172A"), showgrid=True, gridcolor="#E2E8F0"),
-            yaxis=dict(tickfont=dict(color="#0F172A")),
+            margin=dict(l=15, r=15, t=40, b=20),
+            xaxis=dict(tickfont=dict(color="#0F172A", size=10), showgrid=True, gridcolor="#E2E8F0"),
+            yaxis=dict(tickfont=dict(color="#0F172A", size=10)),
             xaxis_title=None, yaxis_title=None
         )
-        st.plotly_chart(fig_depto, use_container_width=True)
+        st.plotly_chart(fig_depto, use_container_width=True, config=config_limpo)
 
 with inf3:
     if "Tipo" in df_acidentes.columns:
@@ -308,12 +327,12 @@ with inf3:
             color_discrete_sequence=["#2D4A3E", "#D97706", "#94A3B8", "#475569"]
         )
         fig_tipo.update_layout(
-            title_font=dict(color="#0F172A"),
+            title_font=dict(color="#0F172A", size=14),
             paper_bgcolor="#FFFFFF",
-            margin=dict(l=20, r=20, t=45, b=20),
-            legend=dict(orientation="v", yanchor="middle", y=0.5, font=dict(color="#0F172A"))
+            margin=dict(l=15, r=15, t=40, b=20),
+            legend=dict(orientation="v", yanchor="middle", y=0.5, font=dict(color="#0F172A", size=10))
         )
-        st.plotly_chart(fig_tipo, use_container_width=True)
+        st.plotly_chart(fig_tipo, use_container_width=True, config=config_limpo)
 
 st.write("")
 
@@ -334,14 +353,16 @@ with detalhe_col1:
                 color_discrete_sequence=["#0284C7"]
             )
             fig_corpo.update_layout(
-                title_font=dict(color="#0F172A"),
+                title_font=dict(color="#0F172A", size=14),
                 plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                margin=dict(l=20, r=20, t=45, b=20),
-                xaxis=dict(tickfont=dict(color="#0F172A"), showgrid=True, gridcolor="#E2E8F0"),
-                yaxis=dict(tickfont=dict(color="#0F172A")),
+                margin=dict(l=15, r=15, t=40, b=20),
+                xaxis=dict(tickfont=dict(color="#0F172A", size=10), showgrid=True, gridcolor="#E2E8F0"),
+                yaxis=dict(tickfont=dict(color="#0F172A", size=10)),
                 xaxis_title=None, yaxis_title=None
             )
-            st.plotly_chart(fig_corpo, use_container_width=True)
+            st.plotly_chart(fig_corpo, use_container_width=True, config=config_limpo)
+        else:
+            st.info("Nenhuma lesão com parte do corpo registrada.")
 
 with detalhe_col2:
     col_agente = next((c for c in ["Agente", "Agente Causador", "Agente_Causador", "Fonte_Lesao"] if c in df_acidentes.columns), None)
@@ -358,11 +379,13 @@ with detalhe_col2:
                 color_discrete_sequence=["#DC2626"]
             )
             fig_agente.update_layout(
-                title_font=dict(color="#0F172A"),
+                title_font=dict(color="#0F172A", size=14),
                 plot_bgcolor="#FFFFFF", paper_bgcolor="#FFFFFF",
-                margin=dict(l=20, r=20, t=45, b=20),
-                xaxis=dict(tickfont=dict(color="#0F172A"), showgrid=True, gridcolor="#E2E8F0"),
-                yaxis=dict(tickfont=dict(color="#0F172A")),
+                margin=dict(l=15, r=15, t=40, b=20),
+                xaxis=dict(tickfont=dict(color="#0F172A", size=10), showgrid=True, gridcolor="#E2E8F0"),
+                yaxis=dict(tickfont=dict(color="#0F172A", size=10)),
                 xaxis_title=None, yaxis_title=None
             )
-            st.plotly_chart(fig_agente, use_container_width=True)
+            st.plotly_chart(fig_agente, use_container_width=True, config=config_limpo)
+        else:
+            st.info("Nenhum agente causador registrado.")
